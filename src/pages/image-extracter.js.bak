@@ -1,0 +1,225 @@
+import Card from 'react-bootstrap/Card';
+import CardGroup from 'react-bootstrap/CardGroup';
+import ListGroup from 'react-bootstrap/ListGroup';
+import Button from 'react-bootstrap/esm/Button';
+import ButtonGroup from 'react-bootstrap/ButtonGroup';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import DropdownButton from 'react-bootstrap/DropdownButton';
+import Dropdown from 'react-bootstrap/Dropdown';
+import Form from 'react-bootstrap/Form';
+import FormGroup from 'react-bootstrap/esm/FormGroup';
+import statusIdExtract from '../utils/tweetsUrlParser';
+
+
+/**
+ * TODO:
+ * 1. Image stays when inpur form 
+ */
+export default function ImageExtracter(){
+
+    const API_BASE = "http://localhost:8091/api/v1/";
+    const [file, setFile] = useState(null);
+
+    function UploadDropDownButton({title_, id_ }){
+        
+        const inputFile = useRef(null);
+
+        function handleClick(){
+            inputFile.current.click();
+        }
+
+        function handleChange(event){
+            const fileUploaded = event.target.files[0];
+            setFile(fileUploaded);
+        }
+
+
+        return (
+            <div>
+                <DropdownButton id={id_} title={title_}>
+                <Dropdown.Item >Downloaded Resource</Dropdown.Item>
+                <Dropdown.Item onClick={handleClick}>
+                    Your PC
+                </Dropdown.Item>
+                <input type='file' id='file' onChange={handleChange} ref={inputFile} style={{display: 'none'}}/>
+            </DropdownButton>
+
+            {file && (
+            <div>
+                <p>selected file: {file.name}</p>
+            </div>
+                )}
+            </div>
+        )
+    }
+
+    function FormatDropDownButton({ selectionArray, title_, id_ }){
+
+        const [outputFormat, setOutputFormat] = useState('');
+
+        function handleFormatChange(format){
+            setOutputFormat(format);
+        }
+
+        const listItems = selectionArray.map((e) => {
+            return (
+                <Dropdown.Item onClick={() => handleFormatChange(e)}>{e}</Dropdown.Item>
+            )
+        })
+
+        return (
+            <div>
+                <DropdownButton id={id_} title={title_}>
+                {listItems}
+                </DropdownButton>
+                {outputFormat && (
+                <div>
+                    <p>{outputFormat}</p>
+                </div>
+                )}
+            </div>
+        )
+    }
+
+    // function DownloadButton({imageUrl, fileName}){
+    //     function handleDownload(){
+    //         const link = document.createElement('a');
+    //         link.href = imageUrl;
+    //         link.download = fileName;
+
+    //         document.body.appendChild(link);
+    //         link.click();
+    //         document.body.removeChild(link);
+    //     }
+
+
+    // }
+
+
+    function URLForm(){
+        const [fetchTrigger, setFetchTrigger] = useState([false]);
+        const [resourceUrl, setResourceUrl] = useState([null]);
+        const image = useRef(null);
+
+        function FetchImage({statusId}){
+
+            const [extractedFile, setExtractedFile] = useState(null);
+
+            const myInit = {
+                method: "get",
+                mode: 'cors',
+            };
+
+
+            // Wrap useEffect in a custom hook, return the data you want. 
+            useEffect(() => {
+                const fetchImage = async () => {
+                    console.log("Fetching: " + API_BASE + statusId);
+                    setExtractedFile(null);
+                    try{
+                        const response = await fetch(API_BASE + statusId, myInit);
+                        console.log("status code is:" + response.status);
+                        
+                        if(response.ok){
+                            const img = await response.blob();
+                            const imageUrl = URL.createObjectURL(img);
+                            // setExtractedFile([imageUrl]);
+                            setExtractedFile(imageUrl);
+                        }else{
+                            console.error("No resource found");
+                        }
+                    }catch(error){
+                        console.error("Failed to fetch image:" + error);
+                    }
+                };
+                
+                // let ignore = false;
+                fetchImage();
+                // fetchTrigger[0] = false;
+                return () => {
+                    fetchTrigger[0] = false;
+                }
+            }, [statusId]);
+            
+            return extractedFile;
+        }
+
+        function ShowImage({statusId}){
+            image.current = FetchImage({statusId});
+            if(image !== null){
+                return <Card.Img variant="top" src = {image.current} />;
+            }else{
+                return ;
+            }
+        }
+
+        const handleFormSubmit = (e) => {
+            e.preventDefault();
+            console.log("triggered");
+            setFetchTrigger([true]);
+        }
+
+        function handleURLChange(e){
+            resourceUrl[0] = e.target.value;
+        }
+
+        return (
+            <div>
+                <Form onSubmit={handleFormSubmit}>
+                    <Form.Label>Image Link</Form.Label>
+                    <Form.Control type='text' placeholder='e.g.: url' onChange={handleURLChange} value={resourceUrl} />
+                    {fetchTrigger[0] && <ShowImage statusId={statusIdExtract(resourceUrl[0])} />}
+                    {resourceUrl[0] && <Form.Text>{resourceUrl[0]}</Form.Text>}
+                    <Button variant='primary'type='submit' >Extract</Button>
+                    <Button variant='primary'>Download</Button>
+                </Form>
+            </div>
+        )
+    }
+
+    function DropDownButtons(){
+
+    }
+    
+    return (
+        <>
+        {/* Upper part */}
+        <CardGroup className='CardGroup'>
+            <Card className='Card' style={{width: 'auto', background: 'grey'}}>
+                <Card.Header>Usage</Card.Header>
+                <Card.Body>
+                    <ListGroup>
+                        <ListGroup.Item>1.Poop</ListGroup.Item>
+                        <ListGroup.Item>2.Pee</ListGroup.Item>
+                    </ListGroup>
+                </Card.Body>
+            </Card>
+
+            <Card style={{width: 'auto', background: 'grey'}}>
+                <Card.Body>
+                    <URLForm />
+                </Card.Body>
+            </Card>
+        </CardGroup>
+
+        {/* bottom part */}
+
+        <CardGroup>
+            <Card className='Card' style={{width: 'auto', background: 'grey'}}>
+                <Card.Body>
+                    <Card.Title>Image Format Convert</Card.Title>
+                    <UploadDropDownButton title_='From' id_= 'from' />
+                    <FormatDropDownButton selectionArray={['jpg', 'png', 'webp']}  title_='To' id_= 'to' />
+                </Card.Body>
+            </Card>
+
+            <Card>
+                <Card.Body>
+                    <Card.Img variant='top' src={file === null ? null :URL.createObjectURL(file)} height={300} width={300} />
+                    <Button variant='primary'>Convert</Button>
+                </Card.Body>
+            </Card>
+        </CardGroup>
+        </>
+    )
+}
